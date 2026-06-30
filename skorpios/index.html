@@ -243,20 +243,21 @@ async function cargarLibro(libro) {
     for (let i = 1; i <= totalPaginas; i++) {
       $loadingText.textContent = `Renderizando página ${i} / ${totalPaginas}…`;
       const page = await pdf.getPage(i);
-      const viewport = page.getViewport({ scale: 2 });
+      const escala = Math.min(3.5, (window.devicePixelRatio || 1) * 2.5);
+      const viewport = page.getViewport({ scale: escala });
       const canvas = document.createElement("canvas");
       canvas.width = viewport.width;
       canvas.height = viewport.height;
       const ctx = canvas.getContext("2d");
       await page.render({ canvasContext: ctx, viewport }).promise;
-      imagenes.push(canvas.toDataURL("image/jpeg", 0.85));
+      imagenes.push(canvas.toDataURL("image/png"));
     }
 
     const tmp = new Image();
     tmp.src = imagenes[0];
     await new Promise(res => tmp.onload = res);
     const ratio = tmp.height / tmp.width;
-    const baseWidth = 500;
+    const baseWidth = 700;
     const baseHeight = Math.round(baseWidth * ratio);
 
     pageFlip = new St.PageFlip($book, {
@@ -264,9 +265,9 @@ async function cargarLibro(libro) {
       height: baseHeight,
       size: "stretch",
       minWidth: 280,
-      maxWidth: 1000,
+      maxWidth: 1400,
       minHeight: 400,
-      maxHeight: 1400,
+      maxHeight: 1900,
       maxShadowOpacity: 0.5,
       showCover: true,
       mobileScrollSupport: true,
