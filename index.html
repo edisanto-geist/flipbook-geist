@@ -154,7 +154,11 @@ async function cargarLibro(libro) {
   if (pageFlip) { pageFlip.destroy(); pageFlip = null; }
 
   try {
-    const pdf = await pdfjsLib.getDocument(libro.archivo).promise;
+const pdf = await pdfjsLib.getDocument({
+     url: libro.archivo,
+     disableRange: true,
+     disableStream: true,
+   }).promise;
     const totalPaginas = pdf.numPages;
     const imagenes = [];
 
