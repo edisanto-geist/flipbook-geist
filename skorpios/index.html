@@ -2,383 +2,179 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#1a2a6c">
-<title>Flipbook</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Geist Brochure Viewer</title>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.js"></script>
+
 <style>
-  :root{
-    --navy:#1a2a6c;
-    --navy-dark:#10184a;
-    --white:#ffffff;
-    --grey:#f2f3f7;
-    --text:#1a2a6c;
-    --text-dim:#6b7396;
-  }
-  *{box-sizing:border-box;}
-  html,body{
-    margin:0;height:100%;background:var(--white);color:var(--text);
-    font-family:'Inter',-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-    display:flex;flex-direction:column;
-  }
-  header{
-    padding:14px 20px;background:var(--navy);
-    display:flex;align-items:center;gap:14px;flex-wrap:wrap;
-  }
-  header h1{
-    font-size:15px;margin:0;font-weight:600;color:var(--white);
-  }
-  .header-spacer{flex:1;}
-  select,button{
-    background:var(--white);color:var(--navy);
-    border:1px solid var(--white);
-    border-radius:6px;padding:8px 14px;font-size:13px;cursor:pointer;
-    font-family:'Inter',sans-serif;font-weight:600;
-    transition:opacity .15s ease;
-  }
-  select:hover,button:hover{ opacity:.85; }
-  #stage{
-    flex:1;position:relative;overflow:hidden;background:var(--grey);
-    touch-action:none;
-  }
-  #zoomWrap{
-    position:absolute;inset:0;
-    display:flex;align-items:center;justify-content:center;
-    overflow:hidden;
-  }
-  #book{
-    box-shadow:0 14px 40px rgba(26,42,108,.18);
-    transform-origin:center center;
-    will-change:transform;
-  }
-  #book canvas, #book img{ display:block; }
-  #loading{
-    position:absolute;inset:0;display:flex;flex-direction:column;
-    align-items:center;justify-content:center;gap:14px;z-index:30;
-    background:rgba(242,243,247,.97);font-size:13px;color:var(--text-dim);
-  }
-  .spinner{
-    width:36px;height:36px;border:3px solid #dfe2ee;border-top-color:var(--navy);
-    border-radius:50%;animation:spin 0.8s linear infinite;
-  }
-  @keyframes spin{to{transform:rotate(360deg);}}
+:root{
+ --navy:#1a2a6c;
+ --bg:#eef1f7;
+}
 
-  /* Pantalla de tapa (click para abrir) */
-  #coverScreen{
-    position:absolute;inset:0;z-index:20;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
-    background:var(--grey);cursor:pointer;
-  }
-  #coverScreen.hidden{ display:none; }
-  #coverImg{
-    max-width:min(86vw,420px);max-height:62vh;
-    box-shadow:0 18px 46px rgba(26,42,108,.25);
-    transition:transform .2s ease;
-  }
-  #coverScreen:hover #coverImg{ transform:scale(1.015); }
-  .cover-hint{
-    background:var(--navy);color:var(--white);
-    padding:10px 22px;border-radius:24px;font-size:13.5px;font-weight:600;
-    box-shadow:0 6px 16px rgba(26,42,108,.3);
-  }
+body{
+ margin:0;
+ font-family:Inter,Arial;
+ background:var(--bg);
+ display:flex;
+ flex-direction:column;
+ height:100vh;
+}
 
-  #controls{
-    padding:12px;display:flex;align-items:center;justify-content:center;gap:10px;
-    background:var(--navy);flex-wrap:wrap;
-  }
-  #controls button{
-    background:var(--white);color:var(--navy);border:none;
-    font-weight:700;padding:9px 16px;
-  }
-  #controls .sep{ width:1px;height:22px;background:rgba(255,255,255,.25);margin:0 4px; }
-  #pageNum{font-size:13px;min-width:60px;text-align:center;color:var(--white);font-weight:600;}
-  #zoomPct{font-size:13px;min-width:42px;text-align:center;color:var(--white);font-weight:600;}
-  .hidden{display:none !important;}
+header{
+ background:var(--navy);
+ color:white;
+ padding:15px 20px;
+ display:flex;
+ justify-content:space-between;
+ align-items:center;
+}
+
+header select, header button{
+ padding:10px;
+ border:none;
+ border-radius:8px;
+}
+
+#viewer{
+ flex:1;
+ display:flex;
+ justify-content:center;
+ align-items:center;
+ overflow:auto;
+ padding:20px;
+}
+
+canvas{
+ box-shadow:0 10px 30px rgba(0,0,0,.15);
+ max-width:100%;
+ height:auto;
+}
+
+footer{
+ background:var(--navy);
+ padding:12px;
+ display:flex;
+ justify-content:center;
+ gap:12px;
+ align-items:center;
+ color:white;
+}
+
+button{
+ cursor:pointer;
+}
 </style>
 </head>
 <body>
 
 <header>
-  <h1>Flipbook</h1>
-  <div class="header-spacer"></div>
-  <select id="bookSelect"></select>
-  <button id="fullscreenBtn">⛶ Pantalla completa</button>
+<div><b>GEIST Flipbook</b></div>
+
+<select id="bookSelect"></select>
 </header>
 
-<div id="stage">
-  <div id="loading">
-    <div class="spinner"></div>
-    <span id="loadingText">Cargando PDF…</span>
-  </div>
-
-  <div id="coverScreen" class="hidden">
-    <img id="coverImg" alt="Tapa">
-    <div class="cover-hint">Tocá para abrir 📖</div>
-  </div>
-
-  <div id="zoomWrap">
-    <div id="book"></div>
-  </div>
+<div id="viewer">
+<canvas id="pdfCanvas"></canvas>
 </div>
 
-<div id="controls">
-  <button id="prevBtn">◀ Anterior</button>
-  <span id="pageNum">– / –</span>
-  <button id="nextBtn">Siguiente ▶</button>
-  <div class="sep"></div>
-  <button id="zoomOutBtn">－</button>
-  <span id="zoomPct">100%</span>
-  <button id="zoomInBtn">＋</button>
-  <button id="zoomResetBtn">Restablecer</button>
-</div>
+<footer>
+<button id="prev">◀</button>
+<span id="pageInfo"></span>
+<button id="next">▶</button>
 
+<button id="zoomOut">−</button>
+<span id="zoomPct">100%</span>
+<button id="zoomIn">+</button>
+</footer>
 <script>
-/* ============================================================
-   1) CONFIGÁ ACÁ TUS LIBROS (PDFs dentro de /pdfs)
-   ============================================================ */
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
 const LIBROS = [
-  { id: "skorpios", nombre: "Salida Grupal Skorpios", archivo: "pdfs/Skorpios.pdf" },
+ { id:"skorpios", nombre:"Salida Grupal Skorpios", archivo:"pdfs/Skorpios.pdf" }
 ];
 
-/* ============================================================
-   2) Lógica del visor
-   ============================================================ */
-pdfjsLib.GlobalWorkerOptions.workerSrc =
-  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+const select=document.getElementById("bookSelect");
+const canvas=document.getElementById("pdfCanvas");
+const ctx=canvas.getContext("2d");
 
-const $select      = document.getElementById("bookSelect");
-const $loading      = document.getElementById("loading");
-const $loadingText  = document.getElementById("loadingText");
-const $book         = document.getElementById("book");
-const $zoomWrap     = document.getElementById("zoomWrap");
-const $stage        = document.getElementById("stage");
-const $pageNum      = document.getElementById("pageNum");
-const $coverScreen  = document.getElementById("coverScreen");
-const $coverImg     = document.getElementById("coverImg");
-const $zoomPct      = document.getElementById("zoomPct");
+const pageInfo=document.getElementById("pageInfo");
+const zoomPct=document.getElementById("zoomPct");
 
-let pageFlip = null;
-let totalPaginasActual = 0;
+let pdf=null;
+let pageNum=1;
+let scale=2.2;
 
-/* ---------------- Zoom + pan (declarado antes de usarse en cargarLibro) ---------------- */
+LIBROS.forEach(libro=>{
+ const opt=document.createElement("option");
+ opt.value=libro.id;
+ opt.textContent=libro.nombre;
+ select.appendChild(opt);
+});
 
-let zoom = 1, panX = 0, panY = 0;
-const ZOOM_MIN = 1, ZOOM_MAX = 3, ZOOM_STEP = 0.4;
-
-function applyTransform() {
-  $book.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
-  $zoomPct.textContent = Math.round(zoom * 100) + "%";
-  $zoomWrap.style.cursor = zoom > 1 ? "grab" : "default";
+async function loadPDF(path){
+ pdf=await pdfjsLib.getDocument(path).promise;
+ pageNum=1;
+ renderPage();
 }
 
-function clampPan() {
-  const maxPan = 400 * (zoom - 1) + 40;
-  panX = Math.max(-maxPan, Math.min(maxPan, panX));
-  panY = Math.max(-maxPan, Math.min(maxPan, panY));
+async function renderPage(){
+ const page=await pdf.getPage(pageNum);
+ const viewport=page.getViewport({scale});
+
+ canvas.width=viewport.width;
+ canvas.height=viewport.height;
+
+ await page.render({
+   canvasContext:ctx,
+   viewport
+ }).promise;
+
+ pageInfo.textContent=`${pageNum} / ${pdf.numPages}`;
+ zoomPct.textContent=Math.round(scale*100/2.2)+"%";
 }
 
-function setZoom(nuevoZoom) {
-  zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, nuevoZoom));
-  if (zoom === 1) { panX = 0; panY = 0; }
-  clampPan();
-  applyTransform();
-}
+document.getElementById("prev").onclick=()=>{
+ if(pageNum>1){
+   pageNum--;
+   renderPage();
+ }
+};
 
-function resetZoom() { zoom = 1; panX = 0; panY = 0; applyTransform(); }
+document.getElementById("next").onclick=()=>{
+ if(pageNum<pdf.numPages){
+   pageNum++;
+   renderPage();
+ }
+};
 
-// Poblar el selector
-LIBROS.forEach(libro => {
-  const opt = document.createElement("option");
-  opt.value = libro.id;
-  opt.textContent = libro.nombre;
-  $select.appendChild(opt);
+document.getElementById("zoomIn").onclick=()=>{
+ scale*=1.2;
+ renderPage();
+};
+
+document.getElementById("zoomOut").onclick=()=>{
+ scale/=1.2;
+ renderPage();
+};
+
+document.getElementById("viewer").addEventListener("wheel", e=>{
+ if(e.ctrlKey){
+   e.preventDefault();
+   if(e.deltaY<0) scale*=1.1;
+   else scale/=1.1;
+   renderPage();
+ }
+},{passive:false});
+
+select.addEventListener("change",()=>{
+ const libro=LIBROS.find(x=>x.id===select.value);
+ loadPDF(libro.archivo);
 });
 
-// Permitir abrir un libro directo vía ?file=ID
-const params = new URLSearchParams(location.search);
-const fileParam = params.get("file");
-let inicial = LIBROS[0];
-if (fileParam) {
-  const match = LIBROS.find(l => l.id === fileParam);
-  if (match) inicial = match;
-}
-$select.value = inicial.id;
-
-$select.addEventListener("change", () => {
-  const libro = LIBROS.find(l => l.id === $select.value);
-  cargarLibro(libro);
-});
-
-document.getElementById("prevBtn").addEventListener("click", () => pageFlip?.flipPrev());
-document.getElementById("nextBtn").addEventListener("click", () => pageFlip?.flipNext());
-document.getElementById("fullscreenBtn").addEventListener("click", () => {
-  if (!document.fullscreenElement) $stage.requestFullscreen?.();
-  else document.exitFullscreen?.();
-});
-
-/* ---------------- Carga del PDF ---------------- */
-
-async function cargarLibro(libro) {
-  $loading.classList.remove("hidden");
-  $loadingText.textContent = "Cargando PDF…";
-  $coverScreen.classList.add("hidden");
-  $book.innerHTML = "";
-  resetZoom();
-  if (pageFlip) { pageFlip.destroy(); pageFlip = null; }
-
-  try {
-    const pdf = await pdfjsLib.getDocument({
-      url: libro.archivo,
-      disableRange: true,
-      disableStream: true,
-    }).promise;
-    const totalPaginas = pdf.numPages;
-    totalPaginasActual = totalPaginas;
-    const imagenes = [];
-
-    for (let i = 1; i <= totalPaginas; i++) {
-      $loadingText.textContent = `Renderizando página ${i} / ${totalPaginas}…`;
-      const page = await pdf.getPage(i);
-      const escala = Math.min(3.5, (window.devicePixelRatio || 1) * 2.5);
-      const viewport = page.getViewport({ scale: escala });
-      const canvas = document.createElement("canvas");
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      const ctx = canvas.getContext("2d");
-      await page.render({ canvasContext: ctx, viewport }).promise;
-      imagenes.push(canvas.toDataURL("image/png"));
-    }
-
-    const tmp = new Image();
-    tmp.src = imagenes[0];
-    await new Promise(res => tmp.onload = res);
-    const ratio = tmp.height / tmp.width;
-    const baseWidth = 700;
-    const baseHeight = Math.round(baseWidth * ratio);
-
-    pageFlip = new St.PageFlip($book, {
-      width: baseWidth,
-      height: baseHeight,
-      size: "stretch",
-      minWidth: 280,
-      maxWidth: 1400,
-      minHeight: 400,
-      maxHeight: 1900,
-      maxShadowOpacity: 0.5,
-      showCover: true,
-      mobileScrollSupport: true,
-      useMouseEvents: true,
-    });
-
-    pageFlip.loadFromImages(imagenes);
-
-    pageFlip.on("flip", (e) => {
-      $pageNum.textContent = `${e.data + 1} / ${totalPaginas}`;
-    });
-
-    // Arranca tapado por la pantalla de tapa; el libro se abre recién al tocarla
-    $coverImg.src = imagenes[0];
-    $loading.classList.add("hidden");
-    $coverScreen.classList.remove("hidden");
-    $pageNum.textContent = `1 / ${totalPaginas}`;
-
-  } catch (err) {
-    $loadingText.textContent = "No se pudo cargar el PDF: " + err.message;
-    console.error(err);
-  }
-}
-
-$coverScreen.addEventListener("click", () => {
-  $coverScreen.classList.add("hidden");
-  if (totalPaginasActual > 1) {
-    pageFlip.turnToPage(1); // salta directo a la primera doble página, sin animación
-    $pageNum.textContent = `2 / ${totalPaginasActual}`;
-  }
-});
-
-cargarLibro(inicial);
-
-/* ---------------- Zoom + pan: controles e interacción ---------------- */
-
-document.getElementById("zoomInBtn").addEventListener("click", () => setZoom(zoom + ZOOM_STEP));
-document.getElementById("zoomOutBtn").addEventListener("click", () => setZoom(zoom - ZOOM_STEP));
-document.getElementById("zoomResetBtn").addEventListener("click", resetZoom);
-
-// --- arrastre con mouse ---
-let dragging = false, dragStartX = 0, dragStartY = 0, panStartX = 0, panStartY = 0;
-
-$zoomWrap.addEventListener("mousedown", (e) => {
-  if (zoom <= 1) return;
-  dragging = true;
-  dragStartX = e.clientX; dragStartY = e.clientY;
-  panStartX = panX; panStartY = panY;
-  $zoomWrap.style.cursor = "grabbing";
-});
-window.addEventListener("mousemove", (e) => {
-  if (!dragging) return;
-  panX = panStartX + (e.clientX - dragStartX);
-  panY = panStartY + (e.clientY - dragStartY);
-  clampPan();
-  applyTransform();
-});
-window.addEventListener("mouseup", () => {
-  dragging = false;
-  $zoomWrap.style.cursor = zoom > 1 ? "grab" : "default";
-});
-
-// --- doble click para zoom rápido ---
-$zoomWrap.addEventListener("dblclick", () => setZoom(zoom > 1 ? 1 : 2));
-
-// --- touch: arrastre con 1 dedo, pinch con 2 dedos ---
-let touchMode = null; // 'pan' | 'pinch'
-let pinchStartDist = 0, pinchStartZoom = 1;
-let touchStartX = 0, touchStartY = 0, touchPanStartX = 0, touchPanStartY = 0;
-let lastTapTime = 0;
-
-function dist(t1, t2) {
-  return Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
-}
-
-$zoomWrap.addEventListener("touchstart", (e) => {
-  if (e.touches.length === 1) {
-    const now = Date.now();
-    if (now - lastTapTime < 280) { // doble tap
-      setZoom(zoom > 1 ? 1 : 2);
-      lastTapTime = 0;
-      return;
-    }
-    lastTapTime = now;
-    if (zoom > 1) {
-      touchMode = "pan";
-      touchStartX = e.touches[0].clientX;
-      touchStartY = e.touches[0].clientY;
-      touchPanStartX = panX; touchPanStartY = panY;
-    }
-  } else if (e.touches.length === 2) {
-    touchMode = "pinch";
-    pinchStartDist = dist(e.touches[0], e.touches[1]);
-    pinchStartZoom = zoom;
-  }
-}, { passive: true });
-
-$zoomWrap.addEventListener("touchmove", (e) => {
-  if (touchMode === "pan" && e.touches.length === 1) {
-    panX = touchPanStartX + (e.touches[0].clientX - touchStartX);
-    panY = touchPanStartY + (e.touches[0].clientY - touchStartY);
-    clampPan();
-    applyTransform();
-  } else if (touchMode === "pinch" && e.touches.length === 2) {
-    const d = dist(e.touches[0], e.touches[1]);
-    setZoom(pinchStartZoom * (d / pinchStartDist));
-  }
-}, { passive: true });
-
-$zoomWrap.addEventListener("touchend", () => { touchMode = null; });
+loadPDF(LIBROS[0].archivo);
 </script>
-
 </body>
 </html>
