@@ -141,7 +141,7 @@
    1) CONFIGÁ ACÁ TUS LIBROS (PDFs dentro de /pdfs)
    ============================================================ */
 const LIBROS = [
-  { id: "Skoripos", nombre: "Salida Grupal Skorpios", archivo: "pdfs/Skorpios.pdf" },
+  { id: "skorpios", nombre: "Salida Grupal Skorpios", archivo: "pdfs/Skorpios.pdf" },
 ];
 
 /* ============================================================
@@ -163,6 +163,32 @@ const $zoomPct      = document.getElementById("zoomPct");
 
 let pageFlip = null;
 let totalPaginasActual = 0;
+
+/* ---------------- Zoom + pan (declarado antes de usarse en cargarLibro) ---------------- */
+
+let zoom = 1, panX = 0, panY = 0;
+const ZOOM_MIN = 1, ZOOM_MAX = 3, ZOOM_STEP = 0.4;
+
+function applyTransform() {
+  $book.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+  $zoomPct.textContent = Math.round(zoom * 100) + "%";
+  $zoomWrap.style.cursor = zoom > 1 ? "grab" : "default";
+}
+
+function clampPan() {
+  const maxPan = 400 * (zoom - 1) + 40;
+  panX = Math.max(-maxPan, Math.min(maxPan, panX));
+  panY = Math.max(-maxPan, Math.min(maxPan, panY));
+}
+
+function setZoom(nuevoZoom) {
+  zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, nuevoZoom));
+  if (zoom === 1) { panX = 0; panY = 0; }
+  clampPan();
+  applyTransform();
+}
+
+function resetZoom() { zoom = 1; panX = 0; panY = 0; applyTransform(); }
 
 // Poblar el selector
 LIBROS.forEach(libro => {
@@ -275,31 +301,7 @@ $coverScreen.addEventListener("click", () => {
 
 cargarLibro(inicial);
 
-/* ---------------- Zoom + pan (mouse, touch, pinch) ---------------- */
-
-let zoom = 1, panX = 0, panY = 0;
-const ZOOM_MIN = 1, ZOOM_MAX = 3, ZOOM_STEP = 0.4;
-
-function applyTransform() {
-  $book.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
-  $zoomPct.textContent = Math.round(zoom * 100) + "%";
-  $zoomWrap.style.cursor = zoom > 1 ? "grab" : "default";
-}
-
-function clampPan() {
-  const maxPan = 400 * (zoom - 1) + 40; // margen permisivo, sin cálculo exacto de bordes
-  panX = Math.max(-maxPan, Math.min(maxPan, panX));
-  panY = Math.max(-maxPan, Math.min(maxPan, panY));
-}
-
-function setZoom(nuevoZoom) {
-  zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, nuevoZoom));
-  if (zoom === 1) { panX = 0; panY = 0; }
-  clampPan();
-  applyTransform();
-}
-
-function resetZoom() { zoom = 1; panX = 0; panY = 0; applyTransform(); }
+/* ---------------- Zoom + pan: controles e interacción ---------------- */
 
 document.getElementById("zoomInBtn").addEventListener("click", () => setZoom(zoom + ZOOM_STEP));
 document.getElementById("zoomOutBtn").addEventListener("click", () => setZoom(zoom - ZOOM_STEP));
