@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1a2a6c">
+<title>Flipbook</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.js"></script>
+<style>
+  :root{
+    --navy:#1a2a6c;
+    --navy-dark:#10184a;
+    --white:#ffffff;
+    --grey:#f2f3f7;
+    --text:#1a2a6c;
+    --text-dim:#6b7396;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;height:100%;background:var(--white);color:var(--text);
+    font-family:'Inter',-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    display:flex;flex-direction:column;
+  }
+  header{
+    padding:14px 20px;background:var(--navy);
+    display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  }
+  header h1{
+    font-size:15px;margin:0;font-weight:600;color:var(--white);
+  }
+  .header-spacer{flex:1;}
+  select,button{
+    background:var(--white);color:var(--navy);
+    border:1px solid var(--white);
+    border-radius:6px;padding:8px 14px;font-size:13px;cursor:pointer;
+    font-family:'Inter',sans-serif;font-weight:600;
+    transition:opacity .15s ease;
+  }
+  select:hover,button:hover{ opacity:.85; }
+  #stage{
+    flex:1;display:flex;align-items:center;justify-content:center;
+    position:relative;overflow:hidden;padding:16px;background:var(--grey);
+  }
+  #book{ box-shadow:0 14px 40px rgba(26,42,108,.18); }
+  #book canvas, #book img{ display:block; }
+  #loading{
+    position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:14px;
+    background:rgba(242,243,247,.95);font-size:13px;color:var(--text-dim);
+  }
+  .spinner{
+    width:36px;height:36px;border:3px solid #dfe2ee;border-top-color:var(--navy);
+    border-radius:50%;animation:spin 0.8s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+  #controls{
+    padding:12px;display:flex;align-items:center;justify-content:center;gap:18px;
+    background:var(--navy);
+  }
+  #controls button{
+    background:var(--white);color:var(--navy);border:none;
+    font-weight:700;padding:9px 18px;
+  }
+  #pageNum{font-size:13px;min-width:70px;text-align:center;color:var(--white);font-weight:600;}
+  .hidden{display:none !important;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Flipbook</h1>
+  <div class="header-spacer"></div>
+  <select id="bookSelect"></select>
+  <button id="fullscreenBtn">⛶ Pantalla completa</button>
+</header>
+
+<div id="stage">
+  <div id="loading">
+    <div class="spinner"></div>
+    <span id="loadingText">Cargando PDF…</span>
+  </div>
+  <div id="book"></div>
+</div>
+
+<div id="controls">
+  <button id="prevBtn">◀ Anterior</button>
+  <span id="pageNum">– / –</span>
+  <button id="nextBtn">Siguiente ▶</button>
+</div>
+
+<script>
+/* ============================================================
+   1) CONFIGÁ ACÁ TUS LIBROS (PDFs dentro de /pdfs)
+   ============================================================ */
+const LIBROS = [
+  { id: "ejemplo", nombre: "PDF de ejemplo", archivo: "pdfs/ejemplo.pdf" },
+  // { id: "skorpios", nombre: "Skorpios Chile", archivo: "pdfs/skorpios.pdf" },
+  // { id: "embrujo",  nombre: "Embrujo Mexicano", archivo: "pdfs/embrujo.pdf" },
+];
+
+/* ============================================================
+   2) Lógica del visor — no hace falta tocar de acá para abajo
+   ============================================================ */
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+const $select = document.getElementById("bookSelect");
+const $loading = document.getElementById("loading");
+const $loadingText = document.getElementById("loadingText");
+const $book = document.getElementById("book");
+const $pageNum = document.getElementById("pageNum");
+
+let pageFlip = null;
+
+// Poblar el selector
+LIBROS.forEach(libro => {
+  const opt = document.createElement("option");
+  opt.value = libro.id;
+  opt.textContent = libro.nombre;
+  $select.appendChild(opt);
+});
+
+// Permitir abrir un libro directo vía ?file=skorpios
+const params = new URLSearchParams(location.search);
+const fileParam = params.get("file");
+let inicial = LIBROS[0];
+if (fileParam) {
+  const match = LIBROS.find(l => l.id === fileParam);
+  if (match) inicial = match;
+}
+$select.value = inicial.id;
+
+$select.addEventListener("change", () => {
+  const libro = LIBROS.find(l => l.id === $select.value);
+  cargarLibro(libro);
+});
+
+document.getElementById("prevBtn").addEventListener("click", () => pageFlip?.flipPrev());
+document.getElementById("nextBtn").addEventListener("click", () => pageFlip?.flipNext());
+document.getElementById("fullscreenBtn").addEventListener("click", () => {
+  const stage = document.getElementById("stage");
+  if (!document.fullscreenElement) stage.requestFullscreen?.();
+  else document.exitFullscreen?.();
+});
+
+async function cargarLibro(libro) {
+  $loading.classList.remove("hidden");
+  $loadingText.textContent = "Cargando PDF…";
+  $book.innerHTML = "";
+  if (pageFlip) { pageFlip.destroy(); pageFlip = null; }
+
+  try {
+    const pdf = await pdfjsLib.getDocument(libro.archivo).promise;
+    const totalPaginas = pdf.numPages;
+    const imagenes = [];
+
+    for (let i = 1; i <= totalPaginas; i++) {
+      $loadingText.textContent = `Renderizando página ${i} / ${totalPaginas}…`;
+      const page = await pdf.getPage(i);
+      const viewport = page.getViewport({ scale: 2 }); // 2 = buena nitidez
+      const canvas = document.createElement("canvas");
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      const ctx = canvas.getContext("2d");
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      imagenes.push(canvas.toDataURL("image/jpeg", 0.85));
+    }
+
+    // Tamaño base del libro a partir de la primera página
+    const tmp = new Image();
+    tmp.src = imagenes[0];
+    await new Promise(res => tmp.onload = res);
+    const ratio = tmp.height / tmp.width;
+    const baseWidth = 500;
+    const baseHeight = Math.round(baseWidth * ratio);
+
+    pageFlip = new St.PageFlip($book, {
+      width: baseWidth,
+      height: baseHeight,
+      size: "stretch",
+      minWidth: 280,
+      maxWidth: 1000,
+      minHeight: 400,
+      maxHeight: 1400,
+      maxShadowOpacity: 0.5,
+      showCover: true,
+      mobileScrollSupport: true,
+      useMouseEvents: true,
+    });
+
+    pageFlip.loadFromImages(imagenes);
+
+    pageFlip.on("flip", (e) => {
+      $pageNum.textContent = `${e.data + 1} / ${totalPaginas}`;
+    });
+    $pageNum.textContent = `1 / ${totalPaginas}`;
+
+  } catch (err) {
+    $loadingText.textContent = "No se pudo cargar el PDF: " + err.message;
+    console.error(err);
+    return;
+  }
+
+  $loading.classList.add("hidden");
+}
+
+cargarLibro(inicial);
+</script>
+
+</body>
+</html>
